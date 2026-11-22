@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>进入 AI 互动大厅 · 西安工业大学云原生俱乐部</title>
+<style>
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 45%, #fdf2f8 100%);
+    color: #333; margin: 0;
+    /* 垂直居中改用「子元素 auto 外边距」而不是 align-items: center ——
+       内容比屏幕高时，center 会把顶部（logo）推出视口上方且滚不回去，
+       auto 外边距在有空间时居中、空间不够时自动退化成从顶部开始，永远不裁切。 */
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+    min-height: 100dvh;
+  }
+  .login-box {
+    background: #fff; border-radius: 20px; padding: 30px 26px 26px;
+    width: 400px; max-width: 100%;
+    margin-top: auto; margin-bottom: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.12);
+    animation: pop .3s ease;
+  }
+  @keyframes pop { from { transform: translateY(12px); opacity: 0 } }
+  .logo {
+    width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 14px;
+    background: linear-gradient(135deg,#6366f1,#8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 26px; box-shadow: 0 8px 20px rgba(99,102,241,.35);
+  }
+  h3 { margin: 0 0 6px; font-size: 1.28em; color: #111827; text-align: center; }
+  p.sub { margin: 0 0 22px; color: #6b7280; font-size: .86em; text-align: center; line-height: 1.6; }
+
+  .field { margin-bottom: 13px; text-align: left; }
+  .field label { display: block; font-size: .82em; color: #4b5563; margin-bottom: 6px; }
+  .field .opt { color: #9ca3af; font-weight: 400; font-size: .92em; }
+  .field input, .field textarea {
+    width: 100%; padding: 12px 14px; border: 1px solid #e5e7eb; border-radius: 12px;
+    outline: none; font-size: 16px;   /* 16px 防止 iOS 聚焦时自动放大页面 */
+    background: #fafafa; transition: .2s; font-family: inherit;
+  }
+  .field textarea { resize: none; line-height: 1.6; padding: 11px 13px; }
+  .field input:focus, .field textarea:focus { border-color: #a5b4fc; background: #fff; }
+  .with-btn { display: flex; gap: 8px; }
+  .with-btn input { flex: 1; min-width: 0; }
+  .dice {
+    flex-shrink: 0; width: 48px; border: 1px solid #e5e7eb; background: #fafafa;
+    border-radius: 12px; cursor: pointer; font-size: 19px; line-height: 1;
+    transition: .2s;
+  }
+  .dice:hover { background: #f5f3ff; border-color: #c4b5fd; }
+
+  .counter { text-align: right; font-size: .72em; color: #b0b0bd; margin-top: 4px; }
+
+  /* 醒目主按钮 */
+  .big-btn {
+    width: 100%; padding: 17px; border: none; border-radius: 14px; cursor: pointer;
+    background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff;
+    font-size: 1.08em; font-weight: 700; font-family: inherit; letter-spacing: .5px;
+    margin-top: 16px; transition: .2s;
+    box-shadow: 0 10px 24px rgba(99,102,241,.38);
+  }
+  .big-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .big-btn:disabled { opacity: .6; cursor: not-allowed; filter: none; transform: none; }
+
+  .hintline { text-align: center; font-size: .76em; color: #9ca3af; margin-top: 10px; line-height: 1.7; }
+
+  details.more { margin-top: 16px; border-top: 1px dashed #ececf3; padding-top: 14px; }
+  details.more summary {
+    cursor: pointer; font-size: .84em; color: #6d28d9; list-style: none; text-align: center;
+  }
+  details.more summary::-webkit-details-marker { display: none; }
+  details.more[open] summary { margin-bottom: 12px; }
+
+  .login-err {
+    color: #ef4444; font-size: .82em; margin-top: 12px; min-height: 1.2em;
+    text-align: center; line-height: 1.6;
+  }
+  .tip { margin-top: 16px; font-size: .75em; color: #9ca3af; text-align: center; line-height: 1.7; }
+  /* 页脚备案信息：按工信部要求，备案号须为可点击文字链接并指向 beian.miit.gov.cn */
+  .icp {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f0f4;
+    text-align: center; font-size: .74em; color: #b0b0bd; line-height: 1.9;
+  }
+  .icp-link { color: #9ca3af; text-decoration: none; }
+  .icp-link:hover { color: #6d28d9; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="login-box">
+  <div class="logo">💬</div>
+  <h3>西安工业大学云原生俱乐部</h3>
+  <p class="sub">AI 互动大厅 · 不用注册、不用密码<br>昵称已经帮你起好了，点一下就能进</p>
+
+  <div class="field">
+    <label>你的昵称 *</label>
+    <div class="with-btn">
+      <input type="text" id="in-name" maxlength="20" autocomplete="off">
+      <button class="dice" id="dice-btn" title="随机换一个昵称">🎲</button>
+    </div>
+  </div>
+  <div class="field">
+    <label>学校</label>
+    <input type="text" id="in-school" maxlength="30" autocomplete="off" value="西安工业大学">
+  </div>
+  <div class="field">
+    <label>专业 <span class="opt">选填</span></label>
+    <input type="text" id="in-major" maxlength="30" autocomplete="off" placeholder="例如：计算机类 / 电子信息类">
+  </div>
+
+  <button class="big-btn" id="login-btn">🚀 一键免填进入聊天室</button>
+  <div class="hintline">昵称不满意？直接改上面的输入框，或点 🎲 换一个</div>
+  <div class="login-err" id="login-err"></div>
+
+  <details class="more">
+    <summary>想让 AI 更懂你？补充一句自我介绍（选填）</summary>
+    <div class="field">
+      <textarea id="in-bio" rows="3" maxlength="100"
+        placeholder="例如：大一新生，对 Linux 和机器人很感兴趣"></textarea>
+      <div class="counter"><span id="bio-count">0</span>/100</div>
+    </div>
+    <div class="hintline">进房时 AI 会结合这句介绍，给你一句专属欢迎语</div>
+  </details>
+
+  <p class="tip">信息仅用于聊天室显示昵称与头像<br>不会验证身份，也无需密码</p>
+
+  <div class="icp">
+    <a class="icp-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">陕ICP备2026027446号-1</a>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+// ---------- 预填一个随机昵称：学生点一下就能进，不用打字 ----------
+const NICK_PREFIX = ['西工大极客萌新', '西工大云原生萌新', '西工大K8s萌新', '西工大Linux萌新', '西工大码力萌新', '西工大运维萌新'];
+function randomNick() {
+  const p = NICK_PREFIX[Math.floor(Math.random() * NICK_PREFIX.length)];
+  return p + Math.floor(1000 + Math.random() * 9000);
+}
+const nameEl = document.getElementById('in-name');
+const schoolEl = document.getElementById('in-school');
+const majorEl = document.getElementById('in-major');
+
+// 如果这台设备之前来过，就用上次的资料预填 —— 服务端会认出是同一个人，
+// 不会重复触发 AI 欢迎语。（改了昵称也还是同一个人）
+const saved = (typeof savedProfile === 'function') ? savedProfile() : null;
+if (saved && saved.name) {
+  nameEl.value = saved.name;
+  if (saved.school) schoolEl.value = saved.school;
+  if (saved.major) majorEl.value = saved.major;
+  const sub = document.querySelector('p.sub');
+  if (sub) sub.innerHTML = '欢迎回来，<b>' + escapeHtml(saved.name) + '</b><br>点一下按钮继续聊天，资料可在「个人中心」里改';
+  const btnEl = document.getElementById('login-btn');
+  if (btnEl) btnEl.textContent = '🚀 继续进入聊天室';
+} else {
+  nameEl.value = randomNick();
+}
+document.getElementById('dice-btn').addEventListener('click', () => {
+  nameEl.value = randomNick();
+  nameEl.focus();
+});
+
+// ---------- 进入 ----------
+const btn = document.getElementById('login-btn');
+btn.addEventListener('click', () => {
+  if (!nameEl.value.trim()) nameEl.value = randomNick();   // 被清空了就再给一个
+  doLogin(() => { location.href = 'home.html'; });
+});
+// 输入框回车都能提交（自我介绍是多行，用 Ctrl+Enter 提交）
+['in-name', 'in-school', 'in-major'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') btn.click();
+  });
+});
+const bioEl = document.getElementById('in-bio');
+bioEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) btn.click();
+});
+bioEl.addEventListener('input', () => {
+  document.getElementById('bio-count').textContent = bioEl.value.length;
+});
+
+// 已经登录过就直接进主页
+(async () => {
+  if (await tryRestore()) location.href = 'home.html';
+})();
+</script>
+</body>
+</html>

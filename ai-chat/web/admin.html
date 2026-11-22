@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 · 幸运观众</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #0f172a; color: #e2e8f0; margin: 0; min-height: 100dvh; line-height: 1.7;
+  }
+  .top {
+    background: linear-gradient(135deg,#4f46e5,#7c3aed); padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .top h1 { margin: 0; font-size: 1.1em; font-weight: 600; }
+  .top .sub { font-size: .78em; opacity: .85; }
+  .top button {
+    background: rgba(255,255,255,.18); border: none; color: #fff; cursor: pointer;
+    padding: 7px 15px; border-radius: 999px; font-size: .82em; font-family: inherit;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 20px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 18px;
+  }
+  .card h2 { margin: 0 0 12px; font-size: .95em; color: #c7d2fe; font-weight: 600; }
+
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat .num { font-size: 1.9em; font-weight: 700; color: #fff; line-height: 1.2; }
+  .stat .lbl { font-size: .76em; color: #94a3b8; }
+
+  .switch { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .switch input { display: none; }
+  .track {
+    width: 50px; height: 28px; border-radius: 999px; background: #475569;
+    position: relative; cursor: pointer; transition: .2s; flex-shrink: 0;
+  }
+  .track::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+    border-radius: 50%; background: #fff; transition: .2s;
+  }
+  .switch input:checked + .track { background: linear-gradient(135deg,#6366f1,#a855f7); }
+  .switch input:checked + .track::after { transform: translateX(22px); }
+  .switch .txt { font-size: .86em; }
+  .switch .txt small { display: block; color: #94a3b8; font-size: .82em; }
+
+  label.field { display: block; font-size: .8em; color: #94a3b8; margin-bottom: 12px; }
+  input[type=number], input[type=text], input[type=password] {
+    width: 100%; margin-top: 5px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #334155; background: #0f172a; color: #e2e8f0;
+    font-size: 16px; font-family: inherit; outline: none;
+  }
+  input:focus { border-color: #6366f1; }
+  input[type=range] { width: 100%; margin-top: 8px; accent-color: #a855f7; }
+
+  .btn {
+    border: none; cursor: pointer; font-family: inherit; font-weight: 600;
+    border-radius: 11px; padding: 11px 16px; font-size: .9em; transition: .18s;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg,#6366f1,#a855f7); color: #fff; width: 100%; }
+  .btn-ghost { background: #334155; color: #cbd5e1; }
+  .btn-warn { background: #7f1d1d; color: #fecaca; }
+  .row { display: flex; gap: 10px; margin-top: 12px; }
+  .row .btn { flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .86em; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #334155; }
+  th { color: #94a3b8; font-weight: 500; font-size: .82em; }
+  td.code { color: #fbbf24; font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
+  .empty { color: #64748b; font-size: .86em; padding: 18px 0; text-align: center; }
+
+  .msg { font-size: .82em; margin-top: 10px; min-height: 1.2em; }
+  .dirty-tip {
+    font-size: .8em; color: #fbbf24; background: #422006; border: 1px solid #854d0e;
+    border-radius: 9px; padding: 8px 12px; margin-bottom: 10px;
+  }
+  .pulse { animation: pulseBtn 1.4s ease-in-out infinite; }
+  @keyframes pulseBtn { 0%,100% { box-shadow: 0 0 0 0 rgba(168,85,247,.6) } 50% { box-shadow: 0 0 0 9px rgba(168,85,247,0) } }
+  .msg.ok { color: #4ade80; }
+  .msg.err { color: #fca5a5; }
+
+  .login {
+    max-width: 360px; margin: 12vh auto 0; background: #1e293b;
+    border: 1px solid #334155; border-radius: 16px; padding: 28px 24px;
+  }
+  .login h1 { margin: 0 0 4px; font-size: 1.15em; }
+  .login p { margin: 0 0 20px; font-size: .82em; color: #94a3b8; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div id="login-view" class="login">
+  <h1>🔐 管理后台</h1>
+  <p>西安工业大学云原生俱乐部 · AI 互动大厅</p>
+  <label class="field">账号<input type="text" id="ad-user" value="admin" autocomplete="username"></label>
+  <label class="field">密码<input type="password" id="ad-pass" placeholder="••••••••" autocomplete="current-password"></label>
+  <button class="btn btn-primary" id="ad-login">登录</button>
+  <div class="msg err" id="login-msg"></div>
+</div>
+
+<!-- 控制台 -->
+<div id="panel-view" class="hidden">
+  <div class="top">
+    <div>
+      <h1>🎁 幸运观众控制台</h1>
+      <div class="sub" id="top-sub">加载中…</div>
+    </div>
+    <div>
+      <button id="ad-refresh">刷新</button>
+      <button id="ad-logout">退出</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <div class="card stat"><span class="num" id="st-online">0</span><span class="lbl">当前在线人数</span></div>
+      <div class="card stat"><span class="num" id="st-joined">0</span><span class="lbl">本期进房人数</span></div>
+      <div class="card stat"><span class="num" id="st-drawn">0</span><span class="lbl">已中奖 / 上限</span></div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <h2>策略设置</h2>
+      <div class="switch">
+        <input type="checkbox" id="cfg-enabled">
+        <label class="track" for="cfg-enabled"></label>
+        <div class="txt">
+          开启「幸运观众」随机欢迎
+          <small>开启 = 进房瞬间掷骰子，中的才欢迎；关闭 = 每个人第一次进来都欢迎一次</small>
+        </div>
+      </div>
+
+      <label class="field">中奖概率 <span id="prob-label" style="color:#fbbf24;font-weight:700">10%</span>
+        <input type="range" id="cfg-prob" min="0" max="100" step="1" value="10">
+      </label>
+      <div class="row" style="margin:-4px 0 12px">
+        <button class="btn btn-ghost" data-prob="1">1%</button>
+        <button class="btn btn-ghost" data-prob="5">5%</button>
+        <button class="btn btn-ghost" data-prob="10">10%</button>
+        <button class="btn btn-ghost" data-prob="30">30%</button>
+        <button class="btn btn-ghost" data-prob="50">50%</button>
+        <button class="btn btn-ghost" data-prob="100">100%</button>
+      </div>
+
+      <label class="field">最多中奖人数（抽满即止）
+        <input type="number" id="cfg-max" min="0" max="1000" value="10">
+      </label>
+
+      <div class="dirty-tip hidden" id="dirty-tip">● 有未保存的修改（自动刷新不会覆盖它，点「保存设置」生效）</div>
+      <div class="row">
+        <button class="btn btn-primary" id="cfg-save">保存设置</button>
+        <button class="btn btn-ghost hidden" id="cfg-revert" style="flex:0 0 96px">撤销</button>
+      </div>
+      <div class="row">
+        <button class="btn btn-warn" id="cfg-reset">开始新一期（清空名单）</button>
+      </div>
+      <div class="msg" id="cfg-msg"></div>
+      <p style="font-size:.78em;color:#64748b;margin:14px 0 0">
+        判定时机：<b>用户进房的那一刻</b>立刻掷骰子（加密随机数），跟进房顺序无关，也没有延迟。<br>
+        <b>同一期内每人只判定一次</b>——反复进出、刷新页面都不会重新获得机会，刷概率无效。<br>
+        开关打开时已经在房间里的人，需要<b>重新进入</b>才会参与抽奖。<br>
+        预计中奖人数 ≈ 进房人数 × 概率，但不会超过「最多中奖人数」；没中奖的人不会触发任何 AI 调用。
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>🏆 中奖名单</h2>
+      <div id="winner-box"><div class="empty">还没有人中奖</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let adToken = localStorage.getItem('ad_token') || '';
+// 有「未保存的修改」时，自动刷新只更新统计和名单，不回写表单 ——
+// 否则每 3 秒一次的自动刷新会把用户正在拖的滑块/刚拨的开关冲回旧值
+let cfgDirty = false;
+
+function setDirty(d) {
+  cfgDirty = d;
+  $('dirty-tip').classList.toggle('hidden', !d);
+  $('cfg-revert').classList.toggle('hidden', !d);
+  $('cfg-save').classList.toggle('pulse', d);
+}
+
+async function api(path, opts = {}) {
+  const url = path + (path.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(adToken);
+  const r = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { showLogin(); throw new Error(d.error || '登录已过期'); }
+  return d;
+}
+
+function showLogin() {
+  adToken = '';
+  localStorage.removeItem('ad_token');
+  $('login-view').classList.remove('hidden');
+  $('panel-view').classList.add('hidden');
+}
+function showPanel() {
+  $('login-view').classList.add('hidden');
+  $('panel-view').classList.remove('hidden');
+  refresh();
+}
+
+async function refresh() {
+  if (!adToken) return;
+  try {
+    const d = await api('/api/admin/state');
+    if (!d.ok) return;
+    $('st-online').textContent = d.online;
+    $('st-joined').textContent = d.joined;
+    $('st-drawn').textContent = d.drawn + ' / ' + d.maxWinners;
+    const pct = Math.round((d.probability || 0) * 100);
+    if (!cfgDirty) {   // 只在没有未保存修改时才回写表单
+      $('cfg-enabled').checked = !!d.enabled;
+      $('cfg-prob').value = pct;
+      $('prob-label').textContent = pct + '%';
+      $('cfg-max').value = d.maxWinners;
+    }
+    $('top-sub').textContent = d.enabled
+      ? `第 ${d.round + 1} 期 · 进房瞬间按 ${pct}% 概率判定，最多 ${d.maxWinners} 人（已中奖 ${d.drawn} 人，实际中奖率 ${d.actualRate.toFixed(1)}%）`
+      : `第 ${d.round + 1} 期 · 策略未开启：每个人第一次进房都会被欢迎一次`;
+    renderWinners(d.winners || []);
+  } catch (e) {
+    // 不要静默：之前这里吞掉了一个 ReferenceError，导致中奖名单一直不刷新却毫无提示
+    console.error('[后台刷新失败]', e);
+    flash($('cfg-msg'), '刷新失败：' + (e && e.message ? e.message : e), false);
+  }
+}
+
+function renderWinners(list) {
+  const box = $('winner-box');
+  if (!list.length) { box.innerHTML = '<div class="empty">还没有人中奖</div>'; return; }
+  const rows = list.map(w =>
+    `<tr><td class="code">${w.code}</td><td>${esc(w.name)}</td><td>${esc(w.school || '—')}</td><td>${esc(w.at)}</td></tr>`
+  ).join('');
+  box.innerHTML = `<table><thead><tr><th>中奖编号</th><th>昵称</th><th>学校</th><th>时间</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function flash(el, text, ok) {
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
+  if (ok) setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+$('ad-login').addEventListener('click', async () => {
+  const btn = $('ad-login');
+  btn.disabled = true;
+  $('login-msg').textContent = '';
+  try {
+    const r = await fetch('/api/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: $('ad-user').value.trim(), password: $('ad-pass').value })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || '登录失败');
+    adToken = d.token;
+    localStorage.setItem('ad_token', adToken);
+    showPanel();
+  } catch (e) {
+    $('login-msg').textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+$('ad-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('ad-login').click(); });
+$('ad-logout').addEventListener('click', showLogin);
+$('ad-refresh').addEventListener('click', refresh);
+
+$('cfg-prob').addEventListener('input', () => {
+  $('prob-label').textContent = $('cfg-prob').value + '%';
+  setDirty(true);
+});
+$('cfg-enabled').addEventListener('change', () => setDirty(true));
+$('cfg-max').addEventListener('input', () => setDirty(true));
+document.querySelectorAll('[data-prob]').forEach(b => {
+  b.addEventListener('click', () => {
+    $('cfg-prob').value = b.dataset.prob;
+    $('prob-label').textContent = b.dataset.prob + '%';
+    setDirty(true);
+  });
+});
+
+$('cfg-save').addEventListener('click', async () => {
+  const d = await api('/api/admin/config', {
+    method: 'POST',
+    body: JSON.stringify({
+      enabled: $('cfg-enabled').checked,
+      probability: (parseInt($('cfg-prob').value || '0', 10)) / 100,
+      maxWinners: parseInt($('cfg-max').value || '0', 10)
+    })
+  });
+  if (d.ok) setDirty(false);
+  flash($('cfg-msg'), d.ok ? '设置已保存' : (d.error || '保存失败'), !!d.ok);
+  refresh();
+});
+
+// 撤销未保存的修改，回到服务端的值
+$('cfg-revert').addEventListener('click', () => {
+  setDirty(false);
+  $('cfg-msg').textContent = '';
+  refresh();
+});
+
+$('cfg-reset').addEventListener('click', async () => {
+  if (!confirm('清空本期中奖名单并从 1 号重新开始？已中奖用户的中奖编号会一并清除。')) return;
+  const d = await api('/api/admin/config', { method: 'POST', body: JSON.stringify({ reset: true }) });
+  if (d.ok) setDirty(false);
+  flash($('cfg-msg'), d.ok ? '已开始新一期' : (d.error || '操作失败'), !!d.ok);
+  refresh();
+});
+
+// 自动刷新 + 启动
+(async () => {
+  if (adToken) {
+    try { const d = await api('/api/admin/state'); if (d.ok) { showPanel(); } else { showLogin(); } }
+    catch (e) { showLogin(); }
+  }
+  setInterval(() => { if (adToken && !$('panel-view').classList.contains('hidden')) refresh(); }, 3000);
+})();
+</script>
+</body>
+</html>

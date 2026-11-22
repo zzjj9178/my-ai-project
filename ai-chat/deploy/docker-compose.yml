@@ -1,0 +1,61 @@
+# ============================================================
+#  AI 互动大厅 —— 前后端分离部署（Docker Compose）
+#
+#  在这个 deploy/ 目录里执行：
+#    cp .env.example .env     # 先填上密钥
+#    docker compose up -d --build
+#    docker compose ps
+#    docker compose logs -f
+#    docker compose down
+#
+#  目录约定：
+#    ../backend  后端的 Dockerfile 和 Go 源码
+#    ../web      前端的 Dockerfile、Nginx 配置和网页文件
+# ============================================================
+
+services:
+  # ---------- 后端：Go 服务，只提供 API 与 WebSocket ----------
+  backend:
+    build: ../backend
+    image: ai-chat-backend:latest
+    container_name: ai-chat-backend
+    restart: always
+    environment:
+      LISTEN_ADDR: "0.0.0.0:8082"
+      # 网页交给前端的 Nginx，本进程只提供 API
+      STATIC_DIR: "off"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      CLUB_KB_FILE: "/app/knowledge.md"
+      AI_WELCOME: "${AI_WELCOME:-on}"
+      AI_WELCOME_STREAM: "${AI_WELCOME_STREAM:-on}"
+      RATE_LIMIT_PER_MIN: "20"
+      WS_SEND_BUFFER: "8192"
+      WS_BACKLOG_HIGH_WATER: "400000"
+      GOMEMLIMIT: "600MiB"
+      TZ: "Asia/Shanghai"
+    expose:
+      - "8082"
+    networks:
+      - ai-net
+
+  # ---------- 前端：Nginx，提供网页并把请求转给后端 ----------
+  front:
+    build: ../web
+    image: ai-chat-front:latest
+    container_name: ai-chat-front
+    restart: always
+    ports:
+      # 宿主机端口可以用环境变量改，默认 80
+      - "${FRONT_PORT:-80}:80"
+    # 等后端健康检查通过再启动前端，避免用户一进来就 502
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ai-net
+
+networks:
+  # 两个容器接到同一个自定义网络里，
+  # 这样前端就能直接用服务名 backend 找到后端（Compose 内置 DNS）
+  ai-net:
+    driver: bridge

@@ -1,0 +1,18 @@
+# 不进构建上下文，省时间也避免把密钥打包进镜像
+backend/env.sh
+backend/env.sh.example
+backend/ai-backend
+backend/*.log
+README.md
+跨域部署说明.md
+.git
+.gitignore
+# 压测工具与前端测试脚手架，不进镜像
+loadtest
+.uitest
+.pytools
+
+# 文档与本地工具，不进镜像
+docs/
+.pytools/
+dist/

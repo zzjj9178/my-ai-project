@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="build" content="v2026.09.26-1530">
+<title>西安工业大学云原生俱乐部 · AI 互动大厅</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f6f7fb; color: #222; margin: 0; line-height: 1.7;
+    display: flex; flex-direction: column; height: 100dvh; overflow: hidden;
+  }
+  a { color: #4f46e5; }
+
+  /* ================= 顶部标签栏（最上层） ================= */
+  .nav-tabs {
+    flex-shrink: 0; background: #fff; border-bottom: 1px solid #ececf3;
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+  .nav-tabs .tabs {
+    /* 和下面的聊天面板/内容区对齐到同一条正中列 */
+    width: 100%; max-width: 980px; margin: 0 auto; padding: 0 8px;
+    display: flex; gap: 4px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .nav-tabs .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    position: relative; flex-shrink: 0; border: none; background: transparent;
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+    padding: 13px 16px 12px; font-size: .9em; color: #6b7280;
+    transition: color .18s;
+  }
+  .tab-btn:hover { color: #6d28d9; }
+  .tab-btn.active { color: #6d28d9; font-weight: 700; }
+  /* 选中项：底部一根短紫色下划线 */
+  .tab-btn::after {
+    content: ''; position: absolute; left: 50%; bottom: 0;
+    width: 0; height: 3px; border-radius: 3px 3px 0 0;
+    background: linear-gradient(90deg,#6366f1,#a855f7);
+    transform: translateX(-50%); transition: width .22s ease;
+  }
+  .tab-btn.active::after { width: 26px; }
+
+  /* 内容页头部横幅：切换标签时有「到达感」 */
+  .page-head {
+    display: flex; align-items: center; gap: 14px;
+    border-radius: 16px; padding: 20px 22px; margin-bottom: 16px; color: #fff;
+    background: linear-gradient(135deg,#6366f1,#8b5cf6);
+    box-shadow: 0 8px 24px rgba(99,102,241,.25);
+  }
+  .page-head.ph-linux { background: linear-gradient(135deg,#0f766e,#14b8a6); box-shadow: 0 8px 24px rgba(20,184,166,.25); }
+  .page-head.ph-k8s   { background: linear-gradient(135deg,#1d4ed8,#0ea5e9); box-shadow: 0 8px 24px rgba(14,165,233,.25); }
+  .page-head.ph-about { background: linear-gradient(135deg,#7c3aed,#c026d3); box-shadow: 0 8px 24px rgba(192,38,211,.25); }
+  .page-head .ph-ico {
+    width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+    background: rgba(255,255,255,.2); display: flex; align-items: center;
+    justify-content: center; font-size: 26px;
+  }
+  .page-head h1 { margin: 0 0 3px; font-size: 1.22em; font-weight: 700; }
+  .page-head p { margin: 0; font-size: .84em; opacity: .93; }
+
+  /* 切换标签时的入场动画 */
+  @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } }
+  .tab-content.active { animation: tabIn .26s ease; }
+
+  .live-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #4ade80; animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+
+  /* ================= 内容区 ================= */
+  .wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
+  body.chat-mode .wrap { padding: 0; overflow: hidden; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  #tab-chat.active { display: flex; flex-direction: column; height: 100%; }
+
+  .inner { max-width: 980px; margin: 0 auto; }
+
+  /* 通用卡片 */
+  .card {
+    background: #fff; border-radius: 16px; padding: 24px 22px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.06); margin-bottom: 16px;
+  }
+  .card h2 { margin: 0 0 6px; font-size: 1.3em; color: #111827; }
+  .card .lead { margin: 0 0 18px; color: #6b7280; font-size: .9em; }
+  .card h3 { margin: 22px 0 8px; font-size: 1.02em; color: #3730a3; }
+  .card p { margin: 0 0 12px; font-size: .93em; color: #374151; }
+  .card ul { margin: 0 0 12px; padding-left: 20px; font-size: .93em; color: #374151; }
+  .card li { margin-bottom: 8px; }
+
+  .note {
+    background: #fffbeb; border-left: 3px solid #f59e0b;
+    padding: 12px 15px; border-radius: 0 8px 8px 0;
+    font-size: .88em; color: #78350f; margin: 14px 0;
+  }
+  .note.blue { background: #eff6ff; border-color: #3b82f6; color: #1e3a8a; }
+  .note.purple { background: #f5f3ff; border-color: #8b5cf6; color: #5b21b6; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 4px; }
+  .chip {
+    background: #f1f5f9; color: #475569; padding: 5px 12px;
+    border-radius: 8px; font-size: .82em; border: 1px solid #e8edf3;
+  }
+  .chip.p { background: #f5f3ff; color: #6d28d9; border-color: #e9e3ff; }
+
+  /* 阶段路线 */
+  .stages { display: grid; gap: 12px; margin-top: 6px; }
+  .stage {
+    border: 1px solid #eef0f4; border-radius: 12px; padding: 14px 16px;
+    background: #fbfbfe; position: relative; padding-left: 58px;
+  }
+  .stage .no {
+    position: absolute; left: 14px; top: 14px;
+    width: 30px; height: 30px; border-radius: 9px; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .84em; font-weight: 700;
+    background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  }
+  .stage.s2 .no { background: linear-gradient(135deg,#0ea5e9,#6366f1); }
+  .stage.s3 .no { background: linear-gradient(135deg,#f97316,#ec4899); }
+  .stage.s4 .no { background: linear-gradient(135deg,#22c55e,#14b8a6); }
+  .stage h4 { margin: 0 0 5px; font-size: .98em; color: #111827; }
+  .stage .k { font-size: .86em; color: #4b5563; margin: 0 0 4px; }
+  .stage .g { font-size: .86em; color: #6d28d9; margin: 0; }
+
+  .logo-tile {
+    width: 46px; height: 46px; border-radius: 11px; flex-shrink: 0;
+    background: #fff; border: 1px solid #e8edf3;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .logo-tile img { width: 26px; height: 26px; object-fit: contain; }
+  .logo-tile.dark { background: #1f2937; border-color: #1f2937; }
+  .logo-tile.mono {
+    color: #fff; font-weight: 700; font-size: .82em; letter-spacing: -.5px; border: none;
+  }
+
+  .co-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .co {
+    display: inline-flex; align-items: center; gap: 7px; background: #fff;
+    border: 1px solid #e8edf3; border-radius: 999px; padding: 5px 13px 5px 5px; font-size: .82em; color: #374151;
+  }
+  .co .logo-tile { width: 26px; height: 26px; border-radius: 8px; }
+  .co .logo-tile img { width: 16px; height: 16px; }
+
+  .cta {
+    display: block; width: 100%; margin-top: 18px; padding: 13px; border: none; cursor: pointer;
+    border-radius: 12px; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff;
+    font-size: .95em; font-family: inherit; font-weight: 600;
+  }
+  .cta:hover { filter: brightness(1.08); }
+
+  /* 「我的」：用本人的头像色块做图标，比 emoji 更干净也更个人化 */
+  .me-btn {
+    flex-shrink: 0; cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.2); border: none; color: #fff;
+    border-radius: 999px; padding: 4px 13px 4px 4px; font-size: .8em; white-space: nowrap;
+    transition: .18s;
+  }
+  .me-btn:hover { background: rgba(255,255,255,.34); }
+  .me-gift { margin-left: 4px; font-size: 1.05em; }
+  .me-avatar {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    background: #6366f1; color: #fff; font-size: 11px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1.5px solid rgba(255,255,255,.85); line-height: 1;
+  }
+
+  /* ================= 个人中心弹窗 ================= */
+  .modal {
+    position: fixed; inset: 0; z-index: 60; background: rgba(17,24,39,.45);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal[hidden] { display: none; }
+  .modal-card {
+    background: #fff; border-radius: 18px; width: 100%; max-width: 420px;
+    max-height: 88vh; overflow-y: auto; padding: 22px 20px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.28); animation: pop .2s ease;
+  }
+  @keyframes pop { from { transform: translateY(10px); opacity: 0 } }
+  .modal-card h3 { margin: 0 0 4px; font-size: 1.12em; color: #111827; }
+  .modal-tip { margin: 0 0 16px; font-size: .78em; color: #6b7280; line-height: 1.6; }
+  .modal-card label { display: block; font-size: .8em; color: #4b5563; margin-bottom: 12px; }
+  .modal-card input, .modal-card textarea {
+    width: 100%; margin-top: 5px; padding: 10px 12px; border: 1px solid #e5e7eb;
+    border-radius: 10px; font-size: 16px; font-family: inherit; outline: none;
+    background: #fafafa; resize: none; transition: .18s;
+  }
+  .modal-card input:focus, .modal-card textarea:focus { border-color: #a5b4fc; background: #fff; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-actions button {
+    flex: 1; padding: 12px; border-radius: 12px; border: none; cursor: pointer;
+    font-size: .92em; font-family: inherit; font-weight: 600;
+  }
+  .btn-primary { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; }
+  .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+  .btn-ghost { background: #f3f4f6; color: #4b5563; }
+  .modal-err { color: #ef4444; font-size: .8em; min-height: 1.1em; margin-top: 6px; }
+  /* ================= 中奖烟花特效 ================= */
+  .fw-canvas {
+    position: fixed; inset: 0; z-index: 90; pointer-events: none; display: block;
+  }
+  .fw-banner {
+    position: fixed; inset: 0; z-index: 91; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; padding: 22px;
+  }
+  .fw-banner .fw-inner {
+    pointer-events: auto; text-align: center; max-width: 360px; width: 100%;
+    background: linear-gradient(160deg,#fffbeb,#fde68a);
+    border: 2px solid #f59e0b; border-radius: 20px; padding: 24px 20px 18px;
+    box-shadow: 0 22px 60px rgba(180,83,9,.35);
+    animation: fwPop .45s cubic-bezier(.2,1.5,.4,1);
+  }
+  @keyframes fwPop { from { transform: scale(.6); opacity: 0 } }
+  .fw-banner .fw-emoji { font-size: 2.6em; line-height: 1; animation: fwShake 1.1s ease-in-out infinite; }
+  @keyframes fwShake { 0%,100% { transform: rotate(-8deg) } 50% { transform: rotate(8deg) } }
+  .fw-banner .fw-title { font-size: 1.1em; font-weight: 800; color: #92400e; margin-top: 6px; }
+  .fw-banner .fw-code {
+    font-size: 1.75em; font-weight: 800; color: #b45309; letter-spacing: 1.5px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; margin: 8px 0 6px;
+  }
+  .fw-banner .fw-tip { font-size: .82em; color: #a16207; line-height: 1.6; }
+  .fw-banner .fw-close {
+    margin-top: 16px; width: 100%; padding: 11px; border: none; cursor: pointer;
+    border-radius: 12px; font-family: inherit; font-weight: 700; font-size: .92em;
+    background: linear-gradient(135deg,#f59e0b,#ea580c); color: #fff;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fw-banner .fw-inner, .fw-banner .fw-emoji { animation: none; }
+  }
+
+  /* 中奖卡片（只有幸运观众才看得到） */
+  .lucky-box {
+    background: linear-gradient(135deg,#fef3c7,#fde68a);
+    border: 1px solid #fbbf24; border-radius: 12px;
+    padding: 14px 12px; margin-bottom: 16px; text-align: center;
+  }
+  .lucky-box .t1 { font-size: .82em; color: #92400e; }
+  .lucky-box .code {
+    font-size: 1.45em; font-weight: 800; color: #b45309; letter-spacing: 1px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; margin: 5px 0 3px;
+  }
+  .lucky-box .t2 { font-size: .76em; color: #a16207; }
+
+  /* 数据卡 */
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 14px 0 4px; }
+  .fact { background: #f8fafc; border: 1px solid #eef0f4; border-radius: 10px; padding: 11px 13px; }
+  .fact .k { font-size: .74em; color: #6b7280; display: block; margin-bottom: 3px; }
+  .fact .v { font-size: .92em; color: #111827; font-weight: 600; }
+
+  /* 纳新流程 */
+  .steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+  .step {
+    background: #f5f3ff; color: #6d28d9; border: 1px solid #e9e3ff;
+    padding: 7px 13px; border-radius: 999px; font-size: .83em;
+  }
+
+  /* 荣誉清单 */
+  .honor-list { list-style: none; padding-left: 0; }
+  .honor-list li {
+    background: #fbfbfe; border: 1px solid #eef0f4; border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 8px; font-size: .9em;
+  }
+  .honor-list li::before { content: '🏅 '; }
+
+  /* ================= 聊天室 ================= */
+  .chat-panel {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    background: #fff; width: 100%; max-width: 980px; margin: 0 auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  }
+  /* 聊天头部：AI 大厅标识 + 在线人数（可折叠）+ 离开 */
+  .chat-head {
+    background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff;
+    padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .chat-head .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .chat-head .brand-logo {
+    width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  .chat-head .brand-logo img { width: 25px; height: 25px; display: block; }
+  .chat-head .brand-txt {
+    min-width: 0; display: flex; flex-direction: column;
+    align-items: flex-start; gap: 2px;
+  }
+  /* nowrap 保证标题永远不被压缩/省略号 */
+  .chat-head .brand-title {
+    display: block; font-size: 1.05em; font-weight: 600; white-space: nowrap;
+  }
+  .chat-head .head-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .leave-btn {
+    flex-shrink: 0; cursor: pointer; font-family: inherit;
+    background: #fff; color: #6d28d9; border: none; font-weight: 600;
+    border-radius: 999px; padding: 7px 17px; font-size: .82em;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15); transition: .18s;
+  }
+  .leave-btn:hover { background: #fee2e2; color: #b91c1c; }
+  /* 在线人数：标题下方的小字，无底色，不抢视线 */
+  .online-chip {
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+    background: transparent; border: none; padding: 0;
+    color: rgba(255,255,255,.82); font-size: .7em; line-height: 1.2;
+    display: inline-flex; align-items: center; gap: 5px; transition: color .18s;
+  }
+  .online-chip:hover { color: #fff; }
+  .online-chip .live-dot { width: 6px; height: 6px; }
+  .online-chip .caret { font-size: .9em; transition: transform .2s; }
+  .online-chip.open .caret { transform: rotate(180deg); }
+
+  .online-bar {
+    padding: 8px 12px; background: #fafafa; border-bottom: 1px solid #f0f0f0;
+    display: flex; gap: 6px; flex-wrap: wrap; max-height: 150px; overflow-y: auto; flex-shrink: 0;
+  }
+  .online-bar[hidden] { display: none; }
+  .who {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #f3f4f6; color: #4b5563; padding: 3px 9px 3px 3px;
+    border-radius: 999px; font-size: .76em;
+  }
+  .who .dot {
+    width: 19px; height: 19px; border-radius: 50%; color: #fff; font-size: 10px;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .who.me-tag { background: #eef2ff; color: #4338ca; }
+
+  .chat-body {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 16px 14px; background: #fbfbfd;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .chat-body::-webkit-scrollbar { width: 6px; }
+  .chat-body::-webkit-scrollbar-thumb { background: #d8d8e3; border-radius: 3px; }
+
+  .row { display: flex; gap: 9px; align-items: flex-start; }
+  .row.me { flex-direction: row-reverse; }
+  .mini-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  }
+  .msg-wrap { max-width: 76%; display: flex; flex-direction: column; }
+  .row.me .msg-wrap { align-items: flex-end; }
+  .who-line { font-size: .72em; color: #9ca3af; margin-bottom: 4px; padding: 0 2px; }
+  .bubble {
+    padding: 9px 13px; border-radius: 14px; font-size: .88em; line-height: 1.65;
+    background: #fff; border: 1px solid #ececf3; color: #1f2937;
+    word-break: break-word; white-space: pre-wrap; border-top-left-radius: 4px;
+  }
+  .row.me .bubble {
+    background: linear-gradient(135deg,#6366f1,#7c6df2); color: #fff;
+    border-color: transparent; border-top-left-radius: 14px; border-top-right-radius: 4px;
+  }
+  .sys {
+    align-self: center; font-size: .73em; color: #9ca3af;
+    background: #f3f4f6; padding: 3px 12px; border-radius: 999px;
+  }
+  .ai-bubble {
+    padding: 11px 14px; border-radius: 14px; font-size: .88em; line-height: 1.7;
+    background: #fff; border: 1px solid #e9e3ff; color: #1f2937; word-break: break-word;
+  }
+  .ai-bubble pre {
+    background:#0f172a; color:#e2e8f0; padding:10px; border-radius:8px;
+    overflow-x:auto; margin:7px 0; font-size:.85em;
+  }
+  .ai-bubble code { background: #f3f0ff; padding: 1px 5px; border-radius: 4px; color: #6d28d9; }
+  .ai-bubble pre code { background: none; padding: 0; color: inherit; }
+  .cursor {
+    display: inline-block; width: 6px; height: 1em; background: #8b5cf6;
+    vertical-align: -2px; margin-left: 2px; animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* 快捷提问气泡 */
+  .pills {
+    display: flex; gap: 8px; padding: 10px 12px 4px; overflow-x: auto; background: #fff;
+    border-top: 1px solid #f0f0f0; flex-shrink: 0; scrollbar-width: none;
+  }
+  .pills::-webkit-scrollbar { display: none; }
+  .pill {
+    flex-shrink: 0; cursor: pointer; font-family: inherit;
+    background: #f5f3ff; color: #6d28d9; border: 1px solid #e9e3ff;
+    padding: 7px 13px; border-radius: 999px; font-size: .8em; line-height: 1.4;
+    max-width: 78vw; text-align: left; transition: .18s;
+  }
+  .pill:hover { background: #ede9fe; border-color: #c4b5fd; }
+
+  .chat-input {
+    display: flex; gap: 7px; padding: 9px 12px 4px;
+    background: #fff; align-items: center; flex-shrink: 0;
+  }
+  .chat-input input {
+    flex: 1; min-width: 0; padding: 10px 14px; border: 1px solid #e5e7eb;
+    border-radius: 999px; outline: none; font-size: 16px;  /* 16px 防 iOS 缩放 */
+    background: #fafafa;
+  }
+  .chat-input input:focus { border-color: #a5b4fc; background: #fff; }
+  .chat-input button {
+    padding: 9px 15px; border: none; border-radius: 999px; cursor: pointer;
+    background: #6366f1; color: #fff; font-size: .86em; white-space: nowrap; font-family: inherit;
+  }
+  .chat-input button.ai-btn { background: linear-gradient(135deg,#8b5cf6,#a78bfa); }
+  .chat-input button:disabled { opacity: .45; cursor: not-allowed; }
+  .hint {
+    text-align: center; color: #b0b0bd; font-size: .72em;
+    padding: 4px 12px max(8px, env(safe-area-inset-bottom)); background: #fff; flex-shrink: 0;
+  }
+
+  footer { text-align: center; color: #9ca3af; font-size: .8em; padding: 6px 0 20px; }
+
+  /* ================= 手机适配 ================= */
+  @media (max-width: 720px) {
+    .wrap { padding: 12px; }
+    .card { padding: 20px 16px; border-radius: 14px; }
+    .card h2 { font-size: 1.15em; }
+    .msg-wrap { max-width: 84%; }
+    .stage { padding-left: 52px; }
+    .chat-input button { padding: 9px 12px; font-size: .8em; }
+    .page-head { padding: 16px 16px; }
+    .page-head h1 { font-size: 1.1em; }
+  }
+
+  /* 宽屏上把聊天面板做成一整块圆角卡片，和两侧留白形成「框」，
+     否则白面板直接顶到边缘、外面却是灰底，看起来像没对齐 */
+  @media (min-width: 760px) {
+    body.chat-mode .wrap { padding: 14px 16px; }
+    .chat-panel { border-radius: 16px; overflow: hidden; box-shadow: 0 6px 26px rgba(0,0,0,.08); }
+  }
+  @media (max-width: 400px) {
+    .tab-btn { padding: 7px 11px; font-size: .78em; }
+    .chat-head .brand-title { font-size: .98em; }
+    .online-chip { font-size: .66em; }
+    .me-btn { padding: 4px 10px 4px 4px; }
+  }
+</style>
+</head>
+<body class="chat-mode">
+
+<!-- ================= 顶部标签栏（最上层） ================= -->
+<nav class="nav-tabs">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="chat"  onclick="switchTab('chat')">💬 AI 互动大厅</button>
+    <button class="tab-btn"        data-tab="about" onclick="switchTab('about')">🏛️ 俱乐部简介</button>
+    <button class="tab-btn"        data-tab="k8s"   onclick="switchTab('k8s')">☁️ 云原生架构</button>
+  </div>
+</nav>
+
+<main class="wrap" id="wrap">
+
+  <!-- ========== Tab 1：AI 互动大厅（默认，占满全屏） ========== -->
+  <section id="tab-chat" class="tab-content active">
+    <div class="chat-panel">
+      <div class="chat-head">
+        <div class="brand">
+          <span class="brand-logo"><img src="logos/icon-deepseek.svg" alt="DeepSeek"></span>
+          <div class="brand-txt">
+            <span class="brand-title">AI 互动大厅</span>
+            <!-- 在线人数放在标题下面，字号更小，不会挤到标题 -->
+            <button class="online-chip open" id="online-toggle" title="点击折叠 / 展开在线列表">
+              <span class="live-dot"></span>在线 <span id="online-num">0</span> 人<span class="caret">▾</span>
+            </button>
+          </div>
+        </div>
+        <div class="head-right">
+          <button class="me-btn" id="profile-btn" title="个人中心 / 修改资料">
+            <span class="me-avatar" id="me-avatar">·</span>我的<span class="me-gift" id="me-gift" hidden>🎁</span>
+          </button>
+          <button class="leave-btn" id="logout-btn" title="离开聊天室">离开</button>
+        </div>
+      </div>
+      <div class="online-bar" id="online-bar"></div>
+      <div class="chat-body" id="chat-body"></div>
+
+      <!-- 快捷提问：点一下自动填入输入框，现场演示不用打字 -->
+      <div class="pills" id="pills">
+        <button class="pill" data-q="@AI 西安工业大学云原生俱乐部是个什么组织？零基础能加入吗？怎么报名？">🎓 俱乐部是做什么的？怎么加入？</button>
+        <button class="pill" data-q="@AI 俱乐部拿过哪些竞赛奖项？参加比赛有什么经验？">🏆 俱乐部拿过哪些竞赛奖项？</button>
+        <button class="pill" data-q="@AI 参加大学生计算机设计大赛，拿国奖有什么秘诀？">💡 计算机设计大赛拿国奖的秘诀？</button>
+      </div>
+
+      <div class="chat-input">
+        <input type="text" id="msg-input" placeholder="说点什么… 或点上面的气泡" autocomplete="off" disabled>
+        <button id="ai-btn" class="ai-btn" title="向 AI 提问">@AI</button>
+        <button id="send-btn" disabled>发送</button>
+      </div>
+      <div class="hint">Enter 发送 · 点气泡自动填入 · @AI 才会调用大模型</div>
+    </div>
+  </section>
+
+  <!-- ========== Tab 3：云原生 & K8s 架构 ========== -->
+  <section id="tab-k8s" class="tab-content">
+    <div class="inner">
+      <header class="page-head ph-k8s">
+        <div class="ph-ico">☁️</div>
+        <div>
+          <h1>云原生 & K8s 架构</h1>
+          <p>从 Linux 底座到 K8s 集群调度 · 现代互联网的基础设施</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <h2>🐧 Linux —— 现代企业级 IT 工业的“地基”</h2>
+        <p class="lead">从操作系统到底层服务器集群，掌握现代互联网的基石。</p>
+
+        <h3>为什么企业服务器全都在跑 Linux？</h3>
+        <p>
+          无论是金融、电信、自动驾驶，还是当红的 AI 大模型推理集群，<b>99% 的核心业务都运行在企业级 Linux</b>
+          （如 Red Hat Enterprise Linux）之上。它拥有无与伦比的长期稳定性、内存管理效率与内核级安全隔离。
+        </p>
+
+        <h3>大一我们需要掌握什么？</h3>
+        <ul>
+          <li><b>告别图形界面的被动点击</b>：熟悉 Shell 命令行的高效自动化；</li>
+          <li><b>掌握系统核心底座</b>：systemd 服务管理、LVM 逻辑卷存储、网络配置与排错；</li>
+          <li><b>容器化环境支撑</b>：为后续的 Docker 和 Kubernetes 搭建坚不可摧的宿主机运行环境。</li>
+        </ul>
+
+        <div class="note purple">
+          💡 不靠死记硬背选择题，全程在真实服务器系统内动手排错，这就是大厂工程师的核心功底。
+        </div>
+
+        <button class="cta" onclick="switchTab('chat')">👉 有想问的？进 AI 互动大厅聊两句</button>
+      </div>
+      <div class="card">
+        <h2>☁️ Kubernetes —— 调度海量算力的“云端超级计算机”</h2>
+        <p class="lead">从单一容器编排，到大规模 GPU 集群调度的工业级事实标准。</p>
+
+        <h3>云原生：不只是把代码传上云端</h3>
+        <p>
+          云原生（Cloud Native）由全球开源基金会 CNCF 定义。它的核心是利用<b>容器化（Docker）</b>、
+          <b>微服务治理</b>与<b>声明式自动化</b>，让复杂的分布式系统具备“永不宕机、秒级伸缩、故障自愈”的能力。
+        </p>
+
+        <h3>为什么连人形机器人与大模型都在用 K8s？</h3>
+        <p>
+          当成百上千张昂贵的 GPU 显卡同时跑模型训练，如何把任务合理分发给不忙的节点？
+          当单台服务器硬件损坏，如何让业务瞬间转移而不影响用户？
+          <b>K8s 就是负责在底层调度一切算力的“总指挥官”。</b>
+        </p>
+
+        <h3>核心掌握技能</h3>
+        <div class="chips">
+          <span class="chip p">Pod 调度编排</span>
+          <span class="chip p">多副本自动化扩缩容</span>
+          <span class="chip p">集群网络通信</span>
+          <span class="chip p">存储挂载</span>
+          <span class="chip p">生产级系统故障排查</span>
+        </div>
+
+        <button class="cta" onclick="switchTab('chat')">👉 想深入问问 K8s？去 AI 互动大厅</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== Tab 2：云原生俱乐部简介（已合并原「荣誉与培养路线」） ========== -->
+  <section id="tab-about" class="tab-content">
+    <div class="inner">
+      <header class="page-head ph-about">
+        <div class="ph-ico">🏛️</div>
+        <div>
+          <h1>云原生俱乐部简介</h1>
+          <p>西安工业大学 × CNCF 基金会共建 · 跨院校云原生技术平台</p>
+        </div>
+      </header>
+
+      <div class="card">
+        <h2>我们是谁</h2>
+        <p class="lead">由学校官方与 CNCF 铂金会员红帽公司及引领云科技公司共建的学生社团。</p>
+        <p>
+          西安工业大学云原生俱乐部（西安工业大学云原生技术俱乐部）由 <b>西安工业大学</b> 与 <b>CNCF 基金会</b> 共建，
+          <b>红帽公司及引领云科技公司</b> 参与支持，经学校官方授牌，专注于推广为
+          <b>AI 大模型和边缘计算提供基础设施</b>的云原生生态。
+        </p>
+        <div class="co-row">
+          <span class="co"><span class="logo-tile"><img src="logos/icon-cncf.svg" alt="CNCF"></span>CNCF 基金会</span>
+          <span class="co"><span class="logo-tile"><img src="logos/icon-redhat.svg" alt="红帽公司"></span>红帽公司及引领云科技公司</span>
+          <span class="co"><span class="logo-tile mono" style="background:#1d4ed8">工大</span>西安工业大学</span>
+        </div>
+
+        <h3>一个跨院校的技术交流平台</h3>
+        <p>
+          以西安工业大学云原生俱乐部为中心，先后孵化了 <b>西安邮电大学、长安大学</b>
+          等多所俱乐部分支机构，形成跨院校的技术交流网络。
+        </p>
+
+        <h3>使命与特色</h3>
+        <div class="chips">
+          <span class="chip p">掌握前沿技术</span>
+          <span class="chip p">竞赛 / 就业 / 升学全方面突破</span>
+          <span class="chip p">老带新</span>
+          <span class="chip p">全链路帮扶</span>
+          <span class="chip p">项目实战驱动</span>
+        </div>
+        <div class="note purple">
+          一句话理解这个方向：<b>「软件开发是造车的，云原生是修高速公路的。」</b>
+          —— 保障海量并发与系统不崩溃，是企业的核心底盘。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🎤 名企大厂一线技术，直接进入课堂</h2>
+        <p class="lead">技术专家来自红帽公司及引领云科技公司，定期到校授课。</p>
+        <ul>
+          <li>以 <b>现场实操为主</b>，不做纸上谈兵</li>
+          <li>授课主题涵盖 <b>DeepSeek 大模型部署与应用</b> 等技术栈</li>
+          <li>企业真实项目驱动，边做边夯实理论体系</li>
+          <li>学校把实习实践纳入课程培养方案，由俱乐部组织内容（如 Apache Hadoop 高级实验课、Linux &amp; 云原生技术项目实习）</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>🏆 阶梯式成长图谱</h2>
+        <p class="lead">从零基础小白到大厂 Offer 与名校保研，一套可复制的培养闭环。</p>
+        <div class="stages">
+          <div class="stage s1">
+            <div class="no">01</div>
+            <h4>基础启蒙 · 大一学年</h4>
+            <p class="k">核心内容：Linux 操作系统管理、Shell 自动化脚本、MySQL 数据库、Docker 容器实操。</p>
+            <p class="g">培养目标：打牢底层实操，期末大作业轻松通关，能独立做出并上线完整 Web 小项目。</p>
+          </div>
+          <div class="stage s2">
+            <div class="no">02</div>
+            <h4>进阶实战 · 大二学年</h4>
+            <p class="k">核心内容：Kubernetes 集群搭建、企业级自动化运维、大厂主流 Go 语言高并发编程。</p>
+            <p class="g">培养目标：组队征战“中国大学生计算机设计大赛”等 A 类赛事，狂揽保研评优综测加分！</p>
+          </div>
+          <div class="stage s3">
+            <div class="no">03</div>
+            <h4>高阶冲刺 · 大三至大四</h4>
+            <p class="k">核心内容：大模型部署与 AI 智能体（Agent）开发、CI/CD 流水线实战、生产级 AIOps 监控。</p>
+            <p class="g">培养目标：带着工业级落地项目，冲刺大厂 30W+ 核心研发实习与名校研究生复试。</p>
+          </div>
+          <div class="stage s4">
+            <div class="no">04</div>
+            <h4>全程托底保障</h4>
+            <p class="k">1v1 简历打造 ｜ 大厂模拟面试 ｜ 遍布全国的校友内推直通渠道。</p>
+            <p class="g">从入学到毕业，每一步都有人带着走。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🥇 竞赛战绩</h2>
+        <p class="lead">连续两年获得中国大学生计算机设计大赛（A 类赛事）地区赛一等奖。</p>
+        <ul class="honor-list">
+          <li><b>连续两年</b>获得中国大学生计算机设计大赛（A 类赛事）<b>地区赛一等奖</b></li>
+          <li>Red Hat 挑战赛 <b>全国总决赛一等奖</b>（个人赛）</li>
+          <li>「风起云算 · 智风」2025 年全国大学生计算机设计大赛西北地区赛 <b>一等奖</b></li>
+          <li>「SmartMedBox 智能药盒」2026 年西北地区赛 <b>一等奖</b></li>
+          <li>「KubePolit 云原生智能领航平台」2026 年西北地区赛 <b>二等奖</b></li>
+        </ul>
+        <div class="note blue">
+          ℹ️ 俱乐部鼓励参与的赛事（不限于）：中国大学生计算机设计大赛、中国国际大学生创新大赛、
+          中国大学生工程实践与创新能力大赛、「软件杯」等。
+        </div>
+      </div>
+
+
+      <div class="card">
+        <h2>🎓 2026 秋季纳新</h2>
+        <p class="lead">不需要你现在就很厉害 —— 我们想找的是愿意动手、能坚持的你。</p>
+        <div class="facts">
+          <div class="fact"><span class="k">纳新对象</span><span class="v">在读本科 / 研究生，专业不限</span></div>
+          <div class="fact"><span class="k">基础要求</span><span class="v">零基础完全可以</span></div>
+          <div class="fact"><span class="k">投入时间</span><span class="v">每周一次集中活动</span></div>
+          <div class="fact"><span class="k">设备要求</span><span class="v">普通笔记本即可</span></div>
+        </div>
+        <h3>纳新流程</h3>
+        <div class="steps">
+          <span class="step">① 参加宣讲会</span>
+          <span class="step">② 扫码进通知群</span>
+          <span class="step">③ 提交报名表</span>
+          <span class="step">④ 简短面谈交流</span>
+          <span class="step">⑤ 录取通知</span>
+        </div>
+        <div class="note">📅 2026 年秋季纳新宣讲会：2026.10.16 · 西安工业大学</div>
+      </div>
+
+      <div class="card">
+        <h2>🛠️ 我们自己造的项目：AI-Chat</h2>
+        <p class="lead">你现在正在用的这个聊天室，就是俱乐部同学自己做出来的。</p>
+        <p>
+          基于 <b>DeepSeek 大模型</b> 的一键部署 AI 多人聊天室，已在 <b>Gitee 开源</b>。
+          支持 <b>1000+ 人并发连接</b>，每秒可处理 <b>1 万条</b> 新消息；
+          聊天室内的 AI 助手能读取 <b>50 条历史聊天记录</b> 作为上下文，从而对提问者形成明确画像。
+        </p>
+        <div class="chips">
+          <span class="chip p">Go + WebSocket</span>
+          <span class="chip p">DeepSeek 大模型</span>
+          <span class="chip p">Docker 一键部署</span>
+          <span class="chip p">1000+ 并发</span>
+        </div>
+        <button class="cta" onclick="switchTab('chat')">👉 回 AI 互动大厅，问点你好奇的</button>
+      </div>
+
+      <footer>用 Go + WebSocket + DeepSeek 构建 · 西安工业大学云原生俱乐部</footer>
+    </div>
+  </section>
+
+</main>
+
+
+<!-- ================= 个人中心 ================= -->
+<div class="modal" id="profile-modal" hidden>
+  <div class="modal-card">
+    <h3>👤 个人中心</h3>
+    <!-- 被抽中「幸运观众」后才会出现 -->
+    <div class="lucky-box" id="pf-lucky" hidden>
+      <div class="t1">🎉 恭喜你成为本期幸运观众</div>
+      <div class="code" id="pf-lucky-code">—</div>
+      <div class="t2">请在会后凭本页面领取精美礼品一份</div>
+    </div>
+    <p class="modal-tip">改资料<b>不会重新触发 AI 欢迎语</b>，也不消耗 Token。</p>
+    <label>昵称 *<input id="pf-name" maxlength="20" autocomplete="off"></label>
+    <label>学校<input id="pf-school" maxlength="30" autocomplete="off"></label>
+    <label>专业<input id="pf-major" maxlength="30" autocomplete="off"></label>
+    <div class="modal-err" id="pf-err"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="pf-cancel">取消</button>
+      <button class="btn-primary" id="pf-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script src="fireworks.js"></script>
+<script>
+// ---------- 标签页切换 ----------
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+  // 聊天室那档要占满全屏（不滚动整页），内容档正常滚动
+  document.body.classList.toggle('chat-mode', name === 'chat');
+  if (history.replaceState) history.replaceState(null, '', '#' + name);
+  if (name === 'chat') scrollBottom();
+  $('wrap').scrollTop = 0;
+}
+
+// ---------- 个人中心：改资料（服务端不调用 AI，所以不会重新欢迎）----------
+(function bindProfile() {
+  const modal = $('profile-modal'), btn = $('profile-btn');
+  if (!modal || !btn) return;
+
+  function renderLucky() {
+    const box = $('pf-lucky'), gift = $('me-gift');
+    if (lucky && lucky.code) {
+      $('pf-lucky-code').textContent = lucky.code;
+      box.removeAttribute('hidden');
+      if (gift) gift.removeAttribute('hidden');
+    } else {
+      box.setAttribute('hidden', '');
+      if (gift) gift.setAttribute('hidden', '');
+    }
+  }
+  window.onLucky = function () {
+    renderLucky();                                  // 更新个人中心里的中奖卡片
+    if (window.celebrateLucky && lucky && lucky.code) {
+      window.celebrateLucky(lucky.code);            // 全屏烟花 + 祝贺横幅
+    }
+  };
+
+  function open() {
+    renderLucky();
+    $('pf-name').value = me ? (me.name || '') : '';
+    $('pf-school').value = me ? (me.school || '') : '';
+    $('pf-major').value = me ? (me.major || '') : '';
+    $('pf-err').textContent = '';
+    // 不自动聚焦：手机上一点开就弹键盘，很打断
+    modal.removeAttribute('hidden');
+  }
+  function close() { modal.setAttribute('hidden', ''); }
+
+  btn.addEventListener('click', open);
+  $('pf-cancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  $('pf-save').addEventListener('click', async () => {
+    const saveBtn = $('pf-save'), err = $('pf-err');
+    err.textContent = '';
+    saveBtn.disabled = true;
+    try {
+      const updated = await saveProfile({
+        name: $('pf-name').value.trim(),
+        school: $('pf-school').value.trim(),
+        major: $('pf-major').value.trim()
+      });
+      close();
+      const av = $('me-avatar');
+      if (av && updated) {
+        av.textContent = updated.initial || '·';
+        av.style.background = updated.color || '#6366f1';
+      }
+      addSys('资料已保存：' + (updated.name || ''));
+    } catch (e) {
+      err.textContent = e.message || '保存失败';
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+})();
+
+// ---------- 在线列表：默认展开，点「在线 N 人」可折叠 ----------
+function syncOnlineToggle() {
+  const chip = $('online-toggle'), bar = $('online-bar');
+  if (!chip || !bar) return;
+  chip.classList.toggle('open', !bar.hasAttribute('hidden'));
+}
+(function bindOnlineToggle() {
+  const chip = $('online-toggle'), bar = $('online-bar');
+  if (!chip || !bar) return;
+  chip.addEventListener('click', () => {
+    bar.toggleAttribute('hidden');   // 有 hidden 就展开，没有就折叠
+    syncOnlineToggle();
+  });
+  syncOnlineToggle();
+})();
+
+// ---------- 快捷提问气泡：点一下自动填入输入框 ----------
+document.querySelectorAll('#pills .pill').forEach(p => {
+  p.addEventListener('click', () => {
+    const input = $('msg-input');
+    if (!input || input.disabled) return;
+    input.value = p.dataset.q;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+});
+
+function fillProfile() {
+  // 自己的昵称/学校不再单独占一行——在线列表里自己永远排第一，那里能看到。
+  // 这里只把「我的」按钮里的头像色块换成本人配色 + 首字。
+  const av = $('me-avatar');
+  if (av && me) {
+    av.textContent = me.initial || '·';
+    av.style.background = me.color || '#6366f1';
+  }
+  $('msg-input').disabled = false;
+  $('send-btn').disabled = false;
+}
+
+(async function init() {
+  bindChatUI();
+  const ok = await tryRestore();
+  if (!ok) { location.href = 'login.html'; return; }   // 没登录就回登录页
+  fillProfile();
+  syncOnlineToggle();
+  if (typeof window.onLucky === 'function') window.onLucky();  // 刷新后仍显示中奖标记
+  connectWS();
+
+  // 支持直接分享某一档（home.html#k8s），默认停在 AI 互动大厅
+  const want = (location.hash || '').replace('#', '');
+  if (['about', 'k8s'].includes(want)) switchTab(want);
+})();
+</script>
+</body>
+</html>

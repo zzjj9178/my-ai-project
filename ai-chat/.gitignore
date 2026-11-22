@@ -1,0 +1,11 @@
+
+# 压测/前端测试的本地依赖
+loadtest/bin/
+loadtest/.gocache/
+loadtest/results/
+loadtest/ui-test/node_modules/
+
+# 本地密钥/环境文件（绝不能提交）
+backend/env.sh
+.env
+*.key

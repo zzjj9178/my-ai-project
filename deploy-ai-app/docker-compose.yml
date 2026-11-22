@@ -1,0 +1,24 @@
+version: "3.5"
+services:
+  backend:
+    image: final-project_backend:latest
+    container_name: my-ai-app-backend
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    image: final-project_frontend:latest
+    container_name: my-ai-app-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    # 关键：将宿主机上生成的个性化文件挂载到容器内
+    volumes:
+      - /home/student/deploy-ai-app/dist:/usr/share/nginx/html:ro
+
+networks:
+  default:
+    name: my-ai-app-net
